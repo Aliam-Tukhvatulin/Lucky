@@ -1,0 +1,280 @@
+openapi: 3.0.0
+info:
+  title: API сервиса Lucky Insurance
+  description: Коллекция запросов API сервиса. Сервис предоставляет информацию о страховках для животных, а также обеспечивает добавление в корзину и оплату.
+  version: 1.1.0
+  contact:
+    name: LuckyFilms API
+    url: https://lucky.com/info
+    email: LuckyFilms@lucky.com
+  termsOfService: https://lucky.com/terms
+  license:
+    name: license 1.0.1 Lucky
+    url: https://lucky.com/license
+servers:
+  - url: https://4453f729-1913-49be-9dcc-b7a316afa17f.mock.pstmn.io
+    description: Сервер приложения LUCKY
+tags:
+  - name: insurances
+    description: Операции со страховыми продуктами
+  - name: cart
+    description: Операции с корзиной покупок
+  - name: payment
+    description: Операции оформления заказа и оплаты
+paths:
+  /insurance:
+    get:
+      tags:
+        - insurances
+      summary: Описание всех страховок для животных
+      description: Возвращает список доступных страховок. Можно отфильтровать по типу животного.
+      operationId: getInsurances
+      parameters:
+        - name: animalType
+          in: query
+          description: Тип животного (кот, собака и др.)
+          required: false
+          schema:
+            type: string
+            enum: [кот, собака]
+      responses:
+        '200':
+          description: Успешный ответ со списком страховок
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  description:
+                    type: string
+                    description: Общее описание сервиса страховок
+                    example: Помощь ветеринара 24/7. Онлайн консультации. Большой выбор ветклиник.
+                  insurances:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Insurance'
+        '400':
+          description: Неудалось обработать запрос
+        '404':
+          description: Страховые продукты не найдены
+        '500':
+          description: Внутренняя ошибка сервера
+        '304':
+          description: Параметры страхового продукта изменились с момента запроса
+
+  /cart/items:
+    post:
+      tags:
+        - cart
+      summary: Добавить страховку в корзину
+      description: Добавляет выбранную страховку в корзину текущего пользователя.
+      operationId: addToCart
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AddToCartRequest'
+      responses:
+        '201':
+          description: Товар успешно добавлен
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CartItem'
+        '400':
+          description: Некорректный запрос
+        '401':
+          description: Пользователь не авторизован
+        '404':
+          description: Страховка с указанным insuranceId не найдена
+    get:
+      tags:
+        - cart
+      summary: Получить содержимое корзины
+      description: Возвращает список всех товаров в корзине пользователя.
+      operationId: getCart
+      responses:
+        '200':
+          description: Список товаров в корзине
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CartItem'
+        '401':
+          description: Пользователь не авторизован
+
+  /cart/items/{itemId}:
+    delete:
+      tags:
+        - cart
+      summary: Удалить товар из корзины
+      description: Удаляет конкретную позицию из корзины по её идентификатору.
+      operationId: removeFromCart
+      parameters:
+        - name: itemId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Идентификатор товара в корзине
+      responses:
+        '204':
+          description: Товар успешно удалён
+        '401':
+          description: Пользователь не авторизован
+        '404':
+          description: Товар с указанным itemId не найден в корзине
+
+  /checkout:
+    post:
+      tags:
+        - payment
+      summary: Оформить заказ и оплатить
+      description: Создаёт заказ на основе текущей корзины и инициирует процесс оплаты через внешний платёжный шлюз.
+      operationId: checkout
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CheckoutRequest'
+      responses:
+        '200':
+          description: Заказ создан, ожидается подтверждение оплаты
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CheckoutResponse'
+        '400':
+          description: Корзина пуста или некорректные данные
+        '401':
+          description: Пользователь не авторизован
+        '402':
+          description: Ошибка при проведении платежа
+
+components:
+  schemas:
+    Insurance:
+      required:
+        - insuranceId
+        - name
+        - type
+        - details
+        - price
+        - currency
+        - period
+        - coverage
+      type: object
+      properties:
+        insuranceId:
+          type: string
+          description: Уникальный идентификатор страхового продукта
+          example: "008"
+        name:
+          type: string
+          description: Название страховки
+          example: "Страховка для кота"
+        type:
+          type: string
+          description: Тип животного, для которого предназначена страховка
+          example: кот
+          enum:
+            - кот
+            - собака
+        details:
+          type: string
+          description: Подробное описание страхового покрытия
+          example: "Круглосуточные консультации ветеринарного врача по телефону, в чате или видеосвязи. Включена ежегодная вакцинация от бешенства."
+        price:
+          type: integer
+          description: Стоимость страховки в указанной валюте
+          example: 50000
+        currency:
+          type: string
+          description: Валюта цены (например, RUB)
+          example: "RUB"
+        period:
+          type: integer
+          description: Срок действия страховки в месяцах
+          example: 12
+        coverage:
+          type: array
+          description: Список включённых услуг
+          items:
+            type: string
+          example: ["Консультации", "Вакцинация", "Ветклиники"]
+
+    AddToCartRequest:
+      type: object
+      required:
+        - insuranceId
+        - quantity
+      properties:
+        insuranceId:
+          type: string
+          description: Идентификатор страховки, которую нужно добавить
+          example: "009"
+        quantity:
+          type: integer
+          description: Количество (обычно 1)
+          minimum: 1
+          example: 1
+
+    CartItem:
+      type: object
+      properties:
+        itemId:
+          type: string
+          description: Внутренний идентификатор позиции в корзине
+          example: "cart_item_123"
+        insuranceId:
+          type: string
+          description: Идентификатор страховки
+          example: "010"
+        name:
+          type: string
+          description: Название страховки
+          example: "Страховка для кота"
+        price:
+          type: integer
+          description: Цена за единицу
+          example: 50000
+        quantity:
+          type: integer
+          description: Количество
+          example: 1
+        currency:
+          type: string
+          description: Валюта
+          example: "RUB"
+
+    CheckoutRequest:
+      type: object
+      properties:
+        paymentMethod:
+          type: string
+          description: Способ оплаты (например, card, applePay)
+          example: "card"
+        # Можно добавить другие поля, например, адрес доставки, но для страховки они не обязательны
+      example:
+        paymentMethod: "card"
+
+    CheckoutResponse:
+      type: object
+      properties:
+        orderId:
+          type: string
+          description: Идентификатор созданного заказа
+          example: "order_987"
+        status:
+          type: string
+          description: Статус заказа после попытки оплаты
+          enum: [pending, paid, failed]
+          example: "pending"
+        paymentUrl:
+          type: string
+          description: Ссылка для редиректа на страницу оплаты (если требуется)
+          example: "https://payment.example.com/pay/order_987"
